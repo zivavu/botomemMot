@@ -1,0 +1,9 @@
+Main Objective:
+
+Create a Margonem bot that operates in the background by capturing the browser window directly (not just screenshots of the foreground). The bot will:
+- Continuously grab the content of the Margonem browser window.
+- Use image processing to detect enemies on the screen.
+- Move the character to the detected enemy and initiate a quick fight automatically.
+- Repeat the process, allowing for unattended, automated gameplay.
+
+The solution should be robust, efficient, and able to work even when the game window is minimized or not in focus.
