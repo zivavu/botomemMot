@@ -1,0 +1,49 @@
+# Margonem Bot Implementation Notes
+
+## Current Implementation
+- Using Playwright to interact with the browser window
+- OpenCV template matching to detect enemies on the game canvas
+- Image processing to find sprites that match enemy templates
+- Click handling to target enemies and initiate combat
+
+## Possible Improvements
+
+### Enemy Detection
+- Implement multiple template sizes for better matching (enemies may appear in different sizes)
+- Add enemy priority list based on level or item drops
+- Use feature detection algorithms like SIFT/SURF for more robust matching
+- Implement a neural network model for more accurate enemy recognition with PyTorch or TensorFlow
+
+### Bot Logic & Autonomy
+- Add pathfinding to navigate around obstacles
+- Implement map awareness to farm efficiently in specific areas
+- Add health/mana monitoring to retreat when necessary
+- Create an inventory management system for loot and consumables
+- Add automatic potion usage during combat
+
+### User Interface
+- Create a GUI dashboard with Tkinter or PyQt
+- Add real-time statistics (enemies killed, items collected, etc.)
+- Implement configuration profiles for different farming strategies
+- Add visual debugging mode to see recognition in real-time
+
+### Safety Features
+- Add random delays between actions to appear more human-like
+- Implement break periods to avoid detection
+- Add captcha detection/avoidance
+
+### Combat Optimization
+- Analyze combat effectiveness and prioritize weaker enemies for faster farming
+- Implement skill rotation based on enemy type
+- Add automatic equipment switching for different enemy types
+
+## Technical Challenges
+- Handling animations and visual effects that may interfere with recognition
+- Dealing with varying network latency that affects gameplay timing
+- Adapting to game updates that change UI or mechanics
+- Handling different screen resolutions and scaling factors
+
+## Future Research
+- Investigate if the game has API endpoints that could be leveraged
+- Research Margonem's network traffic for useful data
+- Explore if WebSocket communications can be monitored/used 

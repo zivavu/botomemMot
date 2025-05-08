@@ -2,7 +2,11 @@ import asyncio
 from playwright.async_api import async_playwright
 import os
 import re
-import aiohttp # Added for asynchronous HTTP requests
+import aiohttp
+import cv2
+import numpy as np
+from PIL import Image
+import io
 
 async def capture_margonem_page(url: str, output_filename: str = "margonem_live_screenshot.png"):
     """Launches a browser, navigates to the Margonem URL, and takes a screenshot."""
@@ -98,249 +102,217 @@ async def scrape_enemy_sprites_from_html(html_table_body_content: str, output_ba
         await browser.close()
     print("Finished scraping enemy sprites.")
 
-if __name__ == "__main__":
-    # IMPORTANT: Paste the HTML table body content provided by the user here
-    # For example: user_html_snippet = \"\"\" <tr> ... </tr> ... </tbody> \"\"\"
-    user_html_snippet = '''<tr>
-    <td>114</td>
-    <td><a href="/tags/view/exp-114-mumie">Expowisko - mumie (114lvl)</a></td>
-    <td><a href="/npc/view/297475/scarabeaus-gir-tab-113lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/skarabeusz1b.gif" data-tip="<b>Scarabeaus Gir-tab</b>113lvl, grp<div>Złote Piaski (25,72)</div>"></a><a href="/npc/view/297473/scarabeaus-nangar-112lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/skarabeusz3.gif" data-tip="<b>Scarabeaus Nangar</b>112lvl, grp<div>Złote Piaski (27,67)</div>"></a><a href="/npc/view/297472/scarabeaus-zihanitum-113lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/skarabeusz2.gif" data-tip="<b>Scarabeaus Zihanitum</b>113lvl<div>Złote Piaski (36,66)</div>"></a><a href="/npc/view/298865/cheperu-114lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/skarabeusz4.gif" data-tip="<b>Cheperu</b>114lvl, grp<div>Oaza Siedmiu Wichrów (40,8)</div>"></a><a href="/npc/view/298752/chodzace-truchlo-113lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mumia-1a.gif" data-tip="<b>Chodzące truchło</b>113lvl<div>Ciche Rumowiska (53,61)</div>"></a><a href="/npc/view/297481/mumia-wysokiego-kaplana-114lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mumia-3a.gif" data-tip="<b>Mumia wysokiego kapłana</b>114lvl, grp<div>Złote Piaski (42,64)</div>"></a><a href="/npc/view/297228/zasuszony-legionista-115lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mumia-5a.gif" data-tip="<b>Zasuszony legionista</b>115lvl, grp<div>Piramida Pustynnego Władcy p.3 (14,11)</div>"></a><a href="/npc/view/298864/antyczny-wojownik-114lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/mumia-7b.gif" data-tip="<b>Antyczny wojownik</b><i>elita</i>114lvl<div>Oaza Siedmiu Wichrów (29,19)</div>"></a><a href="/npc/view/297224/piaskowe-chuchro-114lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mumia-2a.gif" data-tip="<b>Piaskowe chuchro</b>114lvl, grp<div>Piramida Pustynnego Władcy p.3 (20,16)</div>"></a><a href="/npc/view/297225/zabandazowany-zwiadowca-115lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mumia-4b.gif" data-tip="<b>Zabandażowany zwiadowca</b>115lvl, grp<div>Piramida Pustynnego Władcy p.3 (21,14)</div>"></a><a href="/npc/view/297515/zabalsamowany-wyznawca-seta-114lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/mumia-6b.gif" data-tip="<b>Zabalsamowany wyznawca Seta</b><i>elita</i>114lvl<div>Ruiny Pustynnych Burz (6,35)</div>"></a></td>
-</tr>
-<tr>
-    <td>118</td>
-    <td><a href="/tags/view/exp-118-kalamarnice">Expowisko - kałamarnice (118lvl)</a></td>
-    <td><a href="/npc/view/321284/postrach-plaz-118lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kalamarnica1-a.gif" data-tip="<b>Postrach plaż</b>118lvl, grp<div>Jama Morskiej Macki p.1 - sala 1 (33,13)</div>"></a><a href="/npc/view/321282/skazona-kalamarnica-118lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kalamarnica2-b.gif" data-tip="<b>Skażona kałamarnica</b>118lvl, grp<div>Jama Morskiej Macki p.1 - sala 1 (24,12)</div>"></a><a href="/npc/view/321280/zguba-marynarzy-117lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/osmiornica2-a.gif" data-tip="<b>Zguba marynarzy</b>117lvl<div>Jama Morskiej Macki p.1 - sala 1 (28,11)</div>"></a><a href="/npc/view/321283/srebrna-osmiornica-116lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/osmiornica1-a.gif" data-tip="<b>Srebrna ośmiornica</b>116lvl, grp<div>Jama Morskiej Macki p.1 - sala 1 (20,13)</div>"></a><a href="/npc/view/321235/wielka-macka-118lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/osmiornica-e1-a.gif" data-tip="<b>Wielka macka</b><i>elita</i>118lvl, grp<div>Archipelag Bremus An (86,42)</div>"></a></td>
-</tr>
-<tr>
-    <td>121</td>
-    <td><a href="/tags/view/exp-121-ingotia">Expowisko - Ingotia (121lvl)</a></td>
-    <td><a href="/npc/view/322822/rozjuszony-minotaur-120lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ingotia_minotaur-3a.gif" data-tip="<b>Rozjuszony minotaur</b>120lvl, grp<div>Korytarze Wygnańców p.1 - Bezdenne Przepaści (6,8)</div>"></a><a href="/npc/view/322560/obronca-wyspy-120lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ingotia_minotaur-2a.gif" data-tip="<b>Obrońca wyspy</b>120lvl, grp<div>Korytarze Wygnańców p.1 - Sala Ech (6,11)</div>"></a><a href="/npc/view/322823/rogoglowy-zawadiaka-121lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ingotia_minotaur-4b.gif" data-tip="<b>Rogogłowy zawadiaka</b>121lvl, grp<div>Korytarze Wygnańców p.1 - Bezdenne Przepaści (16,9)</div>"></a><a href="/npc/view/319745/rogoglowy-kusznik-122lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ingotia_minotaur-6b.gif" data-tip="<b>Rogogłowy kusznik</b>122lvl, grp<div>Wyspa Ingotia (39,23)</div>"></a><a href="/npc/view/322561/rogoglowy-fechmistrz-119lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ingotia_minotaur-1b.gif" data-tip="<b>Rogogłowy fechmistrz</b>119lvl, grp<div>Korytarze Wygnańców p.1 - Sala Ech (57,13)</div>"></a><a href="/npc/view/322840/bialy-strzelec-121lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ingotia_minotaur-5b.gif" data-tip="<b>Biały strzelec</b>121lvl, grp<div>Korytarze Wygnańców p.1 - Bezdenne Przepaści (37,20)</div>"></a></td>
-</tr>
-<tr>
-    <td>122</td>
-    <td><a href="/tags/view/exp-122-kraby">Expowisko - kraby (122lvl)</a></td>
-    <td><a href="/npc/view/321030/krab-welnistoszczypcy-122lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/krab_big2-b.gif" data-tip="<b>Krab wełnistoszczypcy</b>122lvl, grp<div>Wyspa Rem (40,18)</div>"></a><a href="/npc/view/321029/krab-olbrzymi-123lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/krab_big-b.gif" data-tip="<b>Krab olbrzymi</b>123lvl, grp<div>Wyspa Rem (8,5)</div>"></a></td>
-</tr>
-<tr>
-    <td>124</td>
-    <td><a href="/tags/view/exp-124-caneum">Expowisko - Caneum (124lvl)</a></td>
-    <td><a href="/npc/view/319754/marionetka-demiurga-123lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/caneum_golem-3a.gif" data-tip="<b>Marionetka demiurga</b>123lvl, grp<div>Piaskowa Pułapka p.1 - sala 2 (36,21)</div>"></a><a href="/npc/view/319234/gliniana-kukielka-124lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/caneum_golem-5b.gif" data-tip="<b>Gliniana kukiełka</b>124lvl, grp<div>Wyspa Caneum (41,23)</div>"></a><a href="/npc/view/319233/ziemisty-narwaniec-124lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/caneum_golem-4a.gif" data-tip="<b>Ziemisty narwaniec</b>124lvl, grp<div>Wyspa Caneum (50,22)</div>"></a><a href="/npc/view/319232/ilowy-potwor-125lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/caneum_golem-2a.gif" data-tip="<b>Iłowy potwór</b>125lvl, grp<div>Wyspa Caneum (70,20)</div>"></a><a href="/npc/view/320003/gliniany-golem-125lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/caneum_golem-1b.gif" data-tip="<b>Gliniany golem</b>125lvl, grp<div>Piaskowa Pułapka - Grota Piaskowej Śmierci (17,9)</div>"></a><a href="/npc/view/320040/demiurg-cretula-125lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/caneum_demiurg-2a.gif" data-tip="<b>Demiurg cretula</b><i>elita</i>125lvl, grp<div>Piaskowa Pułapka p.1 - sala 3 (27,8)</div>"></a><a href="/npc/view/320044/demiurg-lutum-125lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/caneum_demiurg-3a.gif" data-tip="<b>Demiurg lutum</b><i>elita</i>125lvl, grp<div>Piaskowa Pułapka p.1 - sala 1 (56,53)</div>"></a><a href="/npc/view/320009/demiurg-argilla-125lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/caneum_demiurg-1b.gif" data-tip="<b>Demiurg argilla</b><i>elita</i>125lvl<div>Piaskowa Pułapka p.1 - sala 1 (12,36)</div>"></a></td>
-</tr>
-<tr>
-    <td>127</td>
-    <td><a href="/tags/view/exp-127-magradit">Expowisko - magradit (127lvl)</a></td>
-    <td><a href="/npc/view/306946/zjadliwy-skorpion-127lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/magradit_skorp-1a.gif" data-tip="<b>Zjadliwy skorpion</b>127lvl, grp<div>Wyspa Magradit (56,32)</div>"></a><a href="/npc/view/306944/palisandrowy-skorpion-126lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/magradit_skorp-3a.gif" data-tip="<b>Palisandrowy skorpion</b>126lvl, grp<div>Wyspa Magradit (68,29)</div>"></a><a href="/npc/view/296963/skorpion-palacego-jadu-126lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/magradit_skorp-4a.gif" data-tip="<b>Skorpion palącego jadu</b>126lvl, grp<div>Wulkan Politraki p.2 - sala 1 (21,10)</div>"></a><a href="/npc/view/296960/feniks-128lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/magradit_feniks-1b.gif" data-tip="<b>Feniks</b>128lvl<div>Wulkan Politraki p.2 - sala 1 (12,8)</div>"></a><a href="/npc/view/296965/skorpion-swietego-ognia-127lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/magradit_skorp-5b.gif" data-tip="<b>Skorpion świętego ognia</b>127lvl, grp<div>Wulkan Politraki p.2 - sala 1 (26,12)</div>"></a><a href="/npc/view/296557/marid-127lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/magradit_marid_1b.gif" data-tip="<b>Marid</b><i>elita</i>127lvl, grp<div>Wulkan Politraki p.2 - sala 2 (18,10)</div>"></a><a href="/npc/view/296961/zelazowy-skorpion-128lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/magradit_skorp-2b.gif" data-tip="<b>Żelazowy skorpion</b>128lvl, grp<div>Wulkan Politraki p.2 - sala 1 (29,8)</div>"></a></td>
-</tr>
-<tr>
-    <td>127</td>
-    <td><a href="/tags/view/exp-127-wraki">Expowisko - wraki (127lvl)</a></td>
-    <td><a href="/npc/view/306011/szkielet-bosmana-130lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/szkiel04.gif" data-tip="<b>Szkielet bosmana</b><i>elita</i>130lvl, grp<div>Wyspa Wraków (28,40)</div>"></a><a href="/npc/view/306214/potepiony-lowca-129lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/szkielet-lowca.gif" data-tip="<b>Potępiony łowca</b>129lvl, grp<div>Grota Trzeszczących Kości p.1 - sala 1 (34,5)</div>"></a><a href="/npc/view/306215/szkielet-pirata-128lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/szkiel05.gif" data-tip="<b>Szkielet pirata</b>128lvl, grp<div>Grota Trzeszczących Kości p.1 - sala 1 (32,6)</div>"></a><a href="/npc/view/306217/przeklety-szkielet-129lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/szkiel01.gif" data-tip="<b>Przeklęty szkielet</b>129lvl, grp<div>Grota Trzeszczących Kości p.1 - sala 1 (14,10)</div>"></a></td>
-</tr>
-<tr>
-    <td>129</td>
-    <td><a href="/tags/view/exp-129-pajaki">Expowisko - pajaki (129lvl)</a></td>
-    <td><a href="/npc/view/265732/cichy-zabojca-127lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/pajak_sosn1-a.gif" data-tip="<b>Cichy zabójca</b>127lvl<div>Szlak Thorpa p.6 (18,73)</div>"></a><a href="/npc/view/265548/plujacy-truciciel-128lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/pajak_sosn3-b.gif" data-tip="<b>Plujący truciciel</b>128lvl, grp<div>Szlak Thorpa p.5 (26,6)</div>"></a><a href="/npc/view/265549/nocny-skrytobojca-129lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/pajak_sosn2-b.gif" data-tip="<b>Nocny skrytobójca</b>129lvl, grp<div>Szlak Thorpa p.5 (28,8)</div>"></a></td>
-</tr>
-<tr>
-    <td>130</td>
-    <td><a href="/tags/view/exp-130-piraci">Expowisko - piraci (130lvl)</a></td>
-    <td><a href="/npc/view/37890/bezduszna-piratka-130lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/pirat1b.gif" data-tip="<b>Bezduszna piratka</b>130lvl, grp<div>Ukryta Grota Morskich Diabłów (6,12)</div>"></a><a href="/npc/view/39169/krnabrny-pirat-131lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/pirat3a.gif" data-tip="<b>Krnąbrny pirat</b>131lvl, grp<div>Korsarska Nora - sala 3 (22,20)</div>"></a><a href="/npc/view/200960/niemilosierny-pirat-131lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/pirat4b.gif" data-tip="<b>Niemiłosierny pirat</b>131lvl, grp<div>Korsarska Nora - sala 4 (23,34)</div>"></a><a href="/npc/view/39181/bezwzgledny-pirat-130lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/pirat2a.gif" data-tip="<b>Bezwzględny pirat</b>130lvl, grp<div>Korsarska Nora - sala 4 (21,13)</div>"></a></td>
-</tr>
-<tr>
-    <td>133</td>
-    <td><a href="/tags/view/exp-133-piaskowi-niewolnicy">Expowisko - piaskowi niewolnicy (133lvl)</a></td>
-    <td><a href="/npc/view/320770/apeliotes-134lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/piaskowy_potwor-4a.gif" data-tip="<b>Apeliotes</b>134lvl, grp<div>Dolina Pustynnych Kręgów (32,56)</div>"></a><a href="/npc/view/322049/notos-132lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/piaskowy_potwor-1a.gif" data-tip="<b>Notos</b>132lvl, grp<div>Piaskowa Gęstwina (33,63)</div>"></a><a href="/npc/view/320769/zefir-133lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/piaskowy_potwor-3b.gif" data-tip="<b>Zefir</b>133lvl, grp<div>Dolina Pustynnych Kręgów (43,57)</div>"></a><a href="/npc/view/322056/boreasz-132lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/piaskowy_potwor-2a.gif" data-tip="<b>Boreasz</b>132lvl, grp<div>Piaskowa Gęstwina (20,65)</div>"></a><a href="/npc/view/320526/anemoi-135lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/piaskowy_potwor-5b.gif" data-tip="<b>Anemoi</b><i>elita</i>135lvl<div>Dolina Pustynnych Kręgów (34,5)</div>"></a></td>
-</tr>
-<tr>
-    <td>134</td>
-    <td><a href="/tags/view/exp-134-korredy">Expowisko - korredy (134lvl)</a></td>
-    <td><a href="/npc/view/290842/korred-wojownik-134lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/korred-wojb.gif" data-tip="<b>Korred wojownik</b>134lvl<div>Kopalnia Żółtego Kruszcu p.2 - sala 1 (13,39)</div>"></a><a href="/npc/view/290817/korred-zbrojny-135lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/korred-zbroja.gif" data-tip="<b>Korred zbrojny</b>135lvl, grp<div>Kopalnia Żółtego Kruszcu p.2 - sala 1 (9,16)</div>"></a><a href="/npc/view/290816/korred-czterolapy-135lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/korred-cztera.gif" data-tip="<b>Korred czterołapy</b>135lvl, grp<div>Kopalnia Żółtego Kruszcu p.2 - sala 1 (19,15)</div>"></a></td>
-</tr>
-<tr>
-    <td>136</td>
-    <td><a href="/tags/view/exp-136-impy">Expowisko - impy (136lvl)</a></td>
-    <td><a href="/npc/view/333827/rogaty-pomiot-136lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/imp-2b.gif" data-tip="<b>Rogaty pomiot</b>136lvl, grp<div>Chodniki Mrinding (6,7)</div>"></a><a href="/npc/view/334336/piekielne-licho-137lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/imp-4a.gif" data-tip="<b>Piekielne licho</b>137lvl<div>Chodniki Mrinding p.2 - sala 2 (38,38)</div>"></a><a href="/npc/view/333828/jaskiniowy-zgrywus-136lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/imp-3b.gif" data-tip="<b>Jaskiniowy zgrywus</b>136lvl, grp<div>Chodniki Mrinding (7,13)</div>"></a><a href="/npc/view/334081/imp-sluga-135lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/imp-1a.gif" data-tip="<b>Imp sługa</b>135lvl, grp<div>Chodniki Mrinding p.2 - sala 1 (35,30)</div>"></a><a href="/npc/view/334338/wybraniec-plomieni-137lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/imp-5a.gif" data-tip="<b>Wybraniec płomieni</b>137lvl, grp<div>Chodniki Mrinding p.2 - sala 2 (28,38)</div>"></a></td>
-</tr>
-<tr>
-    <td>137</td>
-    <td><a href="/tags/view/exp-137-ognie">Expowisko - ognie (137lvl)</a></td>
-    <td><a href="/npc/view/336385/piekielny-zar-138lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kuznia_ogien-3a.gif" data-tip="<b>Piekielny żar</b>138lvl, grp<div>Ognista Studnia p.1 (31,17)</div>"></a><a href="/npc/view/335616/zywy-ogien-trwogi-137lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kuznia_ogien-2a.gif" data-tip="<b>Żywy ogień trwogi</b>137lvl, grp<div>Ścieżki Erebeth p.2 - sala 2 (23,10)</div>"></a><a href="/npc/view/335618/zywy-ogien-137lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kuznia_ogien-1a.gif" data-tip="<b>Żywy ogień</b>137lvl<div>Ścieżki Erebeth p.2 - sala 2 (36,11)</div>"></a></td>
-</tr>
-<tr>
-    <td>138</td>
-    <td><a href="/tags/view/exp-138-ogniste-golemy">Expowisko - ogniste golemy (138lvl)</a></td>
-    <td><a href="/npc/view/336892/golem-wladca-lawy-139lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/golem06.gif" data-tip="<b>Golem władca lawy</b><i>elita</i>139lvl, grp<div>Kuźnia Worundriela p.2 (28,47)</div>"></a><a href="/npc/view/336641/golem-magmowa-lapa-139lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kuznia_golem-4a.gif" data-tip="<b>Golem magmowa łapa</b>139lvl, grp<div>Kuźnia Worundriela p.3 (47,21)</div>"></a><a href="/npc/view/336640/magmowy-golem-138lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kuznia_golem-2b.gif" data-tip="<b>Magmowy golem</b>138lvl, grp<div>Kuźnia Worundriela p.3 (5,23)</div>"></a><a href="/npc/view/336642/wulkaniczny-golem-138lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kuznia_golem-1a.gif" data-tip="<b>Wulkaniczny golem</b>138lvl, grp<div>Kuźnia Worundriela p.3 (9,24)</div>"></a></td>
-</tr>
-<tr>
-    <td>140</td>
-    <td><a href="/tags/view/exp-140-wazki">Expowisko - ważki (140lvl)</a></td>
-    <td><a href="/npc/view/320256/pozognica-tlaca-141lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/wazka_mala2b.gif" data-tip="<b>Pożognica tląca</b>141lvl<div>Jezioro Ważek (5,41)</div>"></a><a href="/npc/view/320515/pozognica-ksiezycowa-140lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/wazka_mala1b.gif" data-tip="<b>Pożognica księżycowa</b>140lvl, grp<div>Babi Wzgórek (8,85)</div>"></a><a href="/npc/view/320513/pozognica-rubinowa-141lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/wazka_mala-3a.gif" data-tip="<b>Pożognica rubinowa</b>141lvl<div>Babi Wzgórek (22,82)</div>"></a><a href="/npc/view/320237/monstrualna-lunka-pizmowa-141lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/wazka1b.gif" data-tip="<b>Monstrualna łunka piżmowa</b><i>elita</i>141lvl, grp<div>Jezioro Ważek (54,32)</div>"></a><a href="/npc/view/320385/monstrualna-lunka-ognista-141lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/wazka2b.gif" data-tip="<b>Monstrualna łunka ognista</b><i>elita</i>141lvl, grp<div>Jezioro Ważek (60,91)</div>"></a></td>
-</tr>
-<tr>
-    <td>143</td>
-    <td><a href="/tags/view/exp-143-gorale">Expowisko - górale (143lvl)</a></td>
-    <td><a href="/npc/view/319493/dobra-zona-144lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-7b.gif" data-tip="<b>Dobra żona</b>144lvl, grp<div>Babi Wzgórek (53,83)</div>"></a><a href="/npc/view/320000/straznik-piwa-144lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-10a.gif" data-tip="<b>Strażnik piwa</b>144lvl, grp<div>Góralska Pieczara p.2 (18,12)</div>"></a><a href="/npc/view/320005/poganiacz-owiec-144lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-3a.gif" data-tip="<b>Poganiacz owiec</b>144lvl, grp<div>Góralska Pieczara p.2 (33,20)</div>"></a><a href="/npc/view/320010/lowczyni-fretek-143lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-8b.gif" data-tip="<b>Łowczyni fretek</b>143lvl, grp<div>Góralska Pieczara p.1 (23,34)</div>"></a><a href="/npc/view/320020/mlody-juhas-143lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-6a.gif" data-tip="<b>Mlody juhas</b>143lvl<div>Góralska Pieczara p.1 (34,16)</div>"></a><a href="/npc/view/320015/goralski-rozbojnik-143lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-1a.gif" data-tip="<b>Góralski rozbójnik</b>143lvl, grp<div>Góralska Pieczara p.1 (26,35)</div>"></a><a href="/npc/view/319144/mistrz-oscypkow-143lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/goral-11b.gif" data-tip="<b>Mistrz oscypków</b><i>elita</i>143lvl, grp<div>Wyjący Wąwóz (13,36)</div>"></a><a href="/npc/view/319351/mistrz-ciupagi-142lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-5a.gif" data-tip="<b>Mistrz ciupagi</b>142lvl, grp<div>Góralskie Przejście (35,44)</div>"></a><a href="/npc/view/319375/goralski-parobek-142lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-2b.gif" data-tip="<b>Góralski parobek</b>142lvl, grp<div>Góralskie Przejście (20,29)</div>"></a><a href="/npc/view/319188/hanka-patelnianka-142lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/goral-9b.gif" data-tip="<b>Hanka patelnianka</b><i>elita</i>142lvl<div>Góralskie Przejście (24,7)</div>"></a><a href="/npc/view/319318/stary-dziad-141lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/goral-4b.gif" data-tip="<b>Stary dziad</b>141lvl, grp<div>Góralskie Przejście (43,31)</div>"></a></td>
-</tr>
-<tr>
-    <td>147</td>
-    <td><a href="/tags/view/exp-147-berserkerzy">Expowisko - berserkerzy (147lvl)</a></td>
-    <td><a href="/npc/view/335872/berserker-rokh-148lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/rokh2.gif" data-tip="<b>Berserker Rokh</b>148lvl<div>Mała Twierdza - mały barak (12,8)</div>"></a><a href="/npc/view/334848/berserker-hlomer-147lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/hlomer1.gif" data-tip="<b>Berserker Hlomer</b>147lvl<div>Zaginiona Dolina (11,20)</div>"></a><a href="/npc/view/334849/berserker-thruta-146lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/thruta1.gif" data-tip="<b>Berserker Thruta</b>146lvl<div>Zaginiona Dolina (62,20)</div>"></a><a href="/npc/view/335360/berserker-kohta-146lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/kohta1.gif" data-tip="<b>Berserker Kohta</b>146lvl, grp<div>Grobowiec Przodków (10,62)</div>"></a><a href="/npc/view/334852/berserker-murro-145lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/murro1.gif" data-tip="<b>Berserker Murro</b>145lvl, grp<div>Zaginiona Dolina (15,28)</div>"></a><a href="/npc/view/335361/berserker-ahin-145lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ahin2.gif" data-tip="<b>Berserker Ahin</b>145lvl, grp<div>Grobowiec Przodków (22,63)</div>"></a><a href="/npc/view/335492/berserker-grilull-146lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/grilull2.gif" data-tip="<b>Berserker Grilull</b><i>elita</i>146lvl<div>Zaginiona Dolina (21,24)</div>"></a><a href="/npc/view/335001/berserker-okel-147lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/okel1.gif" data-tip="<b>Berserker Okel</b><i>elita</i>147lvl<div>Opuszczona Twierdza (48,41)</div>"></a></td>
-</tr>
-<tr>
-    <td>149</td>
-    <td><a href="/tags/view/exp-149-duchy">Expowisko - duchy (149lvl)</a></td>
-    <td><a href="/npc/view/336677/przeswitujacy-baron-150lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/duch_eterycz-6b.gif" data-tip="<b>Prześwitujący baron</b>150lvl, grp<div>Korytarze Milczących Intryg p.2 - sala 2 (10,17)</div>"></a><a href="/npc/view/336676/wystrojone-widmo-150lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/duch_eterycz-3a.gif" data-tip="<b>Wystrojone widmo</b>150lvl, grp<div>Korytarze Milczących Intryg p.2 - sala 2 (12,18)</div>"></a><a href="/npc/view/336674/potepiona-markiza-149lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/duch_eterycz-2b.gif" data-tip="<b>Potępiona markiza</b>149lvl<div>Korytarze Milczących Intryg p.2 - sala 2 (8,21)</div>"></a><a href="/npc/view/336675/duch-arystokraty-149lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/duch_eterycz-5b.gif" data-tip="<b>Duch arystokraty</b>149lvl<div>Korytarze Milczących Intryg p.2 - sala 2 (9,13)</div>"></a><a href="/npc/view/336673/upior-w-cylindrze-148lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/duch_eterycz-4a.gif" data-tip="<b>Upiór w cylindrze</b>148lvl, grp<div>Korytarze Milczących Intryg p.2 - sala 2 (14,6)</div>"></a><a href="/npc/view/336672/przekleta-hrabina-148lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/duch_eterycz-1b.gif" data-tip="<b>Przeklęta hrabina</b>148lvl, grp<div>Korytarze Milczących Intryg p.2 - sala 2 (11,7)</div>"></a><a href="/npc/view/336702/upadly-lord-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/duch_eterycz-8a.gif" data-tip="<b>Upadły Lord</b><i>elita</i>152lvl<div>Korytarze Milczących Intryg p.2 - sala 1 (31,19)</div>"></a><a href="/npc/view/336198/biala-dama-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/duch_eterycz-7a.gif" data-tip="<b>Biała Dama</b><i>elita</i>152lvl, grp<div>Sala Ukrytych Paktów (38,9)</div>"></a></td>
-</tr>
-<tr>
-    <td>151</td>
-    <td><a href="/tags/view/exp-151-mechaniczne-gobliny">Expowisko - mechaniczne gobliny (151lvl)</a></td>
-    <td><a href="/npc/view/334372/tekmo-zinsus-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-4a.gif" data-tip="<b>Tekmo Zinsus</b>152lvl, grp<div>Lokum Złych Goblinów p.2 - sala 2 (37,7)</div>"></a><a href="/npc/view/334384/tektor-vorn-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-6a.gif" data-tip="<b>Tektor Vorn</b>152lvl, grp<div>Lokum Złych Goblinów p.2 - sala 2 (37,17)</div>"></a><a href="/npc/view/334382/pixel-zorn-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-7a.gif" data-tip="<b>Pixel Zorn</b>152lvl, grp<div>Lokum Złych Goblinów p.2 - sala 2 (40,14)</div>"></a><a href="/npc/view/334371/rotgot-megakus-151lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-3b.gif" data-tip="<b>Rotgot Megakus</b>151lvl, grp<div>Lokum Złych Goblinów p.2 - sala 2 (8,7)</div>"></a><a href="/npc/view/334374/ziblet-goons-151lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-5b.gif" data-tip="<b>Ziblet Goons</b>151lvl, grp<div>Lokum Złych Goblinów p.2 - sala 2 (36,9)</div>"></a><a href="/npc/view/334377/krogin-tektus-150lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-2a.gif" data-tip="<b>Krogin Tektus</b>150lvl, grp<div>Lokum Złych Goblinów p.2 - sala 2 (27,11)</div>"></a><a href="/npc/view/334376/boltor-grex-150lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mech_goblin-1b.gif" data-tip="<b>Boltor Grex</b>150lvl<div>Lokum Złych Goblinów p.2 - sala 2 (42,10)</div>"></a></td>
-</tr>
-<tr>
-    <td>152</td>
-    <td><a href="/tags/view/exp-152-dusze">Expowisko - dusze (152lvl)</a></td>
-    <td><a href="/npc/view/334593/duch-zazdrosci-153lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/tru/tri_ghost6.gif" data-tip="<b>Duch zazdrości</b>153lvl, grp<div>Upiorna Droga (76,5)</div>"></a><a href="/npc/view/334599/duch-nienawisci-153lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/tru/tri_ghost5.gif" data-tip="<b>Duch nienawiści</b>153lvl, grp<div>Upiorna Droga (38,24)</div>"></a><a href="/npc/view/334605/dusza-wiernego-straznika-153lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/tru/tri_ghost3.gif" data-tip="<b>Dusza Wiernego Strażnika</b>153lvl, grp<div>Upiorna Droga (32,38)</div>"></a><a href="/npc/view/333824/duch-proznosci-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/tru/tri_ghost4.gif" data-tip="<b>Duch próżności</b>152lvl, grp<div>Wiedźmie Kotłowisko (48,6)</div>"></a><a href="/npc/view/334592/dusza-potepionego-wojownika-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/tru/tri_ghost1b.gif" data-tip="<b>Dusza Potępionego Wojownika</b>152lvl, grp<div>Upiorna Droga (2,5)</div>"></a><a href="/npc/view/334594/dusza-wiecznego-romantyka-152lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/tru/tri_ghost2b.gif" data-tip="<b>Dusza Wiecznego Romantyka</b>152lvl, grp<div>Upiorna Droga (6,6)</div>"></a></td>
-</tr>
-<tr>
-    <td>154</td>
-    <td><a href="/tags/view/exp-154-wiedzmy">Expowisko - wiedzmy (154lvl)</a></td>
-    <td><a href="/npc/view/333825/latajaca-wiedzma-155lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri_witch_1b.gif" data-tip="<b>Latająca Wiedźma</b>155lvl<div>Tristam (53,38)</div>"></a><a href="/npc/view/333572/opetana-wiedzma-155lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri_witch_3b.gif" data-tip="<b>Opętana Wiedźma</b>155lvl, grp<div>Lochy Tristam (10,8)</div>"></a><a href="/npc/view/333313/upadla-wiedzma-155lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri_witch_4a.gif" data-tip="<b>Upadła Wiedźma</b>155lvl, grp<div>Tristam (81,22)</div>"></a><a href="/npc/view/333312/wiedzma-ple-ple-154lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri_witch_5b.gif" data-tip="<b>Wiedźma Ple-Ple</b>154lvl<div>Tristam (29,22)</div>"></a><a href="/npc/view/333314/stara-wiedzma-154lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri_witch_2a.gif" data-tip="<b>Stara Wiedźma</b>154lvl, grp<div>Tristam (64,24)</div>"></a><a href="/npc/view/333573/potepiona-wiedzma-153lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri_witch_6b.gif" data-tip="<b>Potępiona Wiedźma</b>153lvl, grp<div>Lochy Tristam (16,11)</div>"></a></td>
-</tr>
-<tr>
-    <td>156</td>
-    <td><a href="/tags/view/exp-156-czerwoni-orkowie">Expowisko - czerwoni orkowie (156lvl)</a></td>
-    <td><a href="/npc/view/320828/zakapturzony-ork-warlock-159lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/cz_ork7a.gif" data-tip="<b>Zakapturzony Ork Warlock</b>159lvl, grp<div>Osada Czerwonych Orków (59,17)</div>"></a><a href="/npc/view/322199/pogromca-watpliwych-158lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/cz_e_ork1a.gif" data-tip="<b>Pogromca Wątpliwych</b><i>elita</i>158lvl<div>Orcza Wyżyna (69,11)</div>"></a><a href="/npc/view/229678/ork-waleczny-mlot-158lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/cz_ork5b.gif" data-tip="<b>Ork Waleczny Młot</b>158lvl, grp<div>Osada Czerwonych Orków (3,53)</div>"></a><a href="/npc/view/308485/czerwonoskory-wojownik-158lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/orkcz-pal1.gif" data-tip="<b>Czerwonoskóry Wojownik</b>158lvl, grp<div>Grota Orczych Szamanów p.3 s.1 (21,14)</div>"></a><a href="/npc/view/308487/adept-orczej-magii-157lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/orkcz-sza1.gif" data-tip="<b>Adept Orczej Magii</b>157lvl, grp<div>Grota Orczej Hordy p.2 s.3 (23,15)</div>"></a><a href="/npc/view/229156/karminowy-watazka-156lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/orkcz-pal2.gif" data-tip="<b>Karminowy Watażka</b>156lvl, grp<div>Orcza Wyżyna (49,39)</div>"></a><a href="/npc/view/308486/obronca-granic-156lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/cz_ork4a.gif" data-tip="<b>Obrońca Granic</b>156lvl, grp<div>Grota Orczych Szamanów p.3 s.1 (22,14)</div>"></a></td>
-</tr>
-<tr>
-    <td>161</td>
-    <td><a href="/tags/view/exp-161-dziki-zagajnik">Expowisko - dziki zagajnik (161lvl)</a></td>
-    <td><a href="/npc/view/323366/gryf-162lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/gryf.gif" data-tip="<b>Gryf</b>162lvl, grp<div>Dziki Zagajnik (15,2)</div>"></a><a href="/npc/view/323335/mantikora-161lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mantikora02.gif" data-tip="<b>Mantikora</b>161lvl, grp<div>Dziki Zagajnik (28,5)</div>"></a><a href="/npc/view/323334/hydra-kamienna-161lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/h_kamienna2.gif" data-tip="<b>Hydra kamienna</b>161lvl<div>Dziki Zagajnik (71,56)</div>"></a><a href="/npc/view/323328/hydra-ognista-161lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/h_ognista2.gif" data-tip="<b>Hydra ognista</b>161lvl, grp<div>Dziki Zagajnik (57,51)</div>"></a><a href="/npc/view/323330/hydra-turkusowa-160lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/h_turkusowa1.gif" data-tip="<b>Hydra turkusowa</b>160lvl<div>Dziki Zagajnik (16,51)</div>"></a><a href="/npc/view/323329/hydra-piaskowa-160lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/h_piaskowa1.gif" data-tip="<b>Hydra piaskowa</b>160lvl, grp<div>Dziki Zagajnik (68,50)</div>"></a><a href="/npc/view/323332/hydra-bagienna-160lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/h_bagienna1.gif" data-tip="<b>Hydra bagienna</b>160lvl, grp<div>Dziki Zagajnik (28,52)</div>"></a></td>
-</tr>
-<tr>
-    <td>163</td>
-    <td><a href="/tags/view/exp-163-kazamaty">Expowisko - kazamaty (163lvl)</a></td>
-    <td><a href="/npc/view/227394/duch-pradawnego-egzekutora-164lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/praork_duch3a.gif" data-tip="<b>Duch Pradawnego Egzekutora</b><i>elita</i>164lvl, grp<div>Nawiedzone Kazamaty p.3 s.1 (17,6)</div>"></a><a href="/npc/view/227337/zywe-kosci-praorka-162lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_szkielet02.gif" data-tip="<b>Żywe Kości Praorka</b>162lvl, grp<div>Nawiedzone Kazamaty p.2 s.1 (8,6)</div>"></a><a href="/npc/view/227368/widmo-przeszlosci-165lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_duch4.gif" data-tip="<b>Widmo Przeszłości</b>165lvl, grp<div>Nawiedzone Kazamaty p.4 (21,34)</div>"></a><a href="/npc/view/227351/praorczy-herod-164lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_duch2b.gif" data-tip="<b>Praorczy Herod</b>164lvl, grp<div>Nawiedzone Kazamaty p.2 s.1 (33,35)</div>"></a><a href="/npc/view/227328/zjawa-z-nawiedzonych-kazamat-164lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_duch1a.gif" data-tip="<b>Zjawa z Nawiedzonych Kazamat</b>164lvl, grp<div>Nawiedzone Kazamaty p.2 s.1 (14,26)</div>"></a><a href="/npc/view/227848/krolewski-praszaman-163lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_duch6a.gif" data-tip="<b>Królewski Praszaman</b>163lvl, grp<div>Nawiedzone Kazamaty p.1 s.2 (21,17)</div>"></a><a href="/npc/view/227849/lowca-dusz-163lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_duch5a.gif" data-tip="<b>Łowca Dusz</b>163lvl, grp<div>Nawiedzone Kazamaty p.1 s.2 (24,5)</div>"></a></td>
-</tr>
-<tr>
-    <td>163</td>
-    <td><a href="/tags/view/exp-163-ogry">Expowisko - ogry (163lvl)</a></td>
-    <td><a href="/npc/view/70928/ogr-lamacz-kosci-161lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/ogr_palownik.gif" data-tip="<b>Ogr Łamacz Kości</b>161lvl<div>Ogrza Kawerna p.3 (28,91)</div>"></a><a href="/npc/view/70924/ogr-miazdzyciel-czaszek-162lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/ogr_paua.gif" data-tip="<b>Ogr Miażdżyciel Czaszek</b>162lvl, grp<div>Ogrza Kawerna p.3 (24,88)</div>"></a><a href="/npc/view/70954/ogr-rozpruwacz-trzewi-163lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/ogr_oprawca.gif" data-tip="<b>Ogr Rozpruwacz Trzewi</b>163lvl, grp<div>Ogrza Kawerna p.2 (32,66)</div>"></a><a href="/npc/view/70915/ogr-cwiartownik-164lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/ogr_sadysta.gif" data-tip="<b>Ogr Ćwiartownik</b>164lvl, grp<div>Ogrza Kawerna p.3 (54,61)</div>"></a><a href="/npc/view/70916/okryst-czarny-rytual-165lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/ogr_szaman.gif" data-tip="<b>Okryst Czarny Rytuał</b>165lvl<div>Ogrza Kawerna p.3 (58,66)</div>"></a></td>
-</tr>
-<tr>
-    <td>170</td>
-    <td><a href="/tags/view/exp-170-komnaty">Expowisko - komnaty (170lvl)</a></td>
-    <td><a href="/npc/view/227632/szara-strzala-167lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_low-a.gif" data-tip="<b>Szara Strzała</b>167lvl, grp<div>Sala Dowódcy Orków (34,12)</div>"></a><a href="/npc/view/227598/pradawny-ork-warlock-167lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_mag.gif" data-tip="<b>Pradawny Ork Warlock</b>167lvl, grp<div>Sala Rady Orków (17,14)</div>"></a><a href="/npc/view/227615/pradawny-mistrz-miecza-166lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_pal.gif" data-tip="<b>Pradawny Mistrz Miecza</b>166lvl, grp<div>Sala Rady Orków (24,42)</div>"></a><a href="/npc/view/227584/niszczyciel-czaszek-169lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_woj_2.gif" data-tip="<b>Niszczyciel Czaszek</b>169lvl, grp<div>Sala Rady Orków (32,18)</div>"></a><a href="/npc/view/227585/tropiciel-smokow-168lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_lowca.gif" data-tip="<b>Tropiciel Smoków</b>168lvl, grp<div>Sala Rady Orków (39,16)</div>"></a><a href="/npc/view/227590/nestor-praorczej-magii-170lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/praork_mag2a.gif" data-tip="<b>Nestor Praorczej Magii</b>170lvl, grp<div>Sala Rady Orków (44,30)</div>"></a><a href="/npc/view/230481/straznik-przyboczny-168lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/praork_woj_1a.gif" data-tip="<b>Strażnik Przyboczny</b><i>elita</i>168lvl, grp<div>Nawiedzone Komnaty - wschód (15,13)</div>"></a><a href="/npc/view/308512/czarny-gwardzista-171lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/woj/czarna_gwardia_3.gif" data-tip="<b>Czarny Gwardzista</b>171lvl, grp<div>Sala Królewska (20,25)</div>"></a><a href="/npc/view/308511/pradawny-halabardzista-172lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/woj/czar_gwardia4a.gif" data-tip="<b>Pradawny Halabardzista</b>172lvl, grp<div>Sala Królewska (25,24)</div>"></a><a href="/npc/view/227422/obronca-czarnej-perly-172lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/woj/czar_gwardia5a.gif" data-tip="<b>Obrońca Czarnej Perły</b>172lvl, grp<div>Sala Królewska (33,36)</div>"></a><a href="/npc/view/227431/wysluzony-wiarus-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/woj/czar_gwardia2a.gif" data-tip="<b>Wysłużony Wiarus</b>173lvl, grp<div>Sala Królewska (37,18)</div>"></a><a href="/npc/view/227461/profos-czarnej-gwardii-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/czarna_gwardia_1.gif" data-tip="<b>Profos Czarnej Gwardii</b><i>elita</i>173lvl, grp<div>Komnata Czarnej Perły (24,6)</div>"></a></td>
-</tr>
-<tr>
-    <td>174</td>
-    <td><a href="/tags/view/exp-174-krysztalowa-grota">Expowisko - kryształowa grota (174lvl)</a></td>
-    <td><a href="/npc/view/321638/zamarzniety-straznik-krolowej-175lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_straz-1b.gif" data-tip="<b>Zamarznięty strażnik królowej</b>175lvl, grp<div>Kryształowa Grota - Sala Smutku (19,9)</div>"></a><a href="/npc/view/321639/profos-lodowej-gwardii-175lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_straz-2a.gif" data-tip="<b>Profos lodowej gwardii</b>175lvl, grp<div>Kryształowa Grota - Sala Smutku (24,9)</div>"></a><a href="/npc/view/322065/lodowy-golem-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_blue-2a.gif" data-tip="<b>Lodowy golem</b>174lvl, grp<div>Kryształowa Grota p.2 - sala 2 (53,42)</div>"></a><a href="/npc/view/321794/nimfa-mrozu-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ice_nymph02-a.gif" data-tip="<b>Nimfa mrozu</b>174lvl, grp<div>Kryształowa Grota p.1 (39,9)</div>"></a><a href="/npc/view/321802/nimfa-chlodu-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/ice_nymph01-b.gif" data-tip="<b>Nimfa chłodu</b>174lvl, grp<div>Kryształowa Grota p.1 (39,20)</div>"></a><a href="/npc/view/322377/rubinowy-golem-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_red-2b.gif" data-tip="<b>Rubinowy golem</b>174lvl, grp<div>Kryształowa Grota p.6 (23,14)</div>"></a><a href="/npc/view/322329/cytrynowy-golem-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_yellow_2b.gif" data-tip="<b>Cytrynowy golem</b>174lvl, grp<div>Kryształowa Grota p.5 (49,13)</div>"></a><a href="/npc/view/322235/ametystowy-golem-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_purple_2a.gif" data-tip="<b>Ametystowy golem</b>174lvl, grp<div>Kryształowa Grota p.3 - sala 1 (23,37)</div>"></a><a href="/npc/view/321792/ozywiona-zmarzlina-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_blue-3b.gif" data-tip="<b>Ożywiona zmarzlina</b>173lvl, grp<div>Kryształowa Grota p.1 (53,8)</div>"></a><a href="/npc/view/322048/oszroniona-skala-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_blue-4b.gif" data-tip="<b>Oszroniona skała</b>173lvl, grp<div>Kryształowa Grota p.2 - sala 2 (22,37)</div>"></a><a href="/npc/view/322382/czerwonooka-skala-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_red-3b.gif" data-tip="<b>Czerwonooka skała</b>173lvl<div>Kryształowa Grota p.6 (21,16)</div>"></a><a href="/npc/view/322334/zoltooka-skala-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_yellow_3a.gif" data-tip="<b>Żółtooka skała</b>173lvl, grp<div>Kryształowa Grota p.5 (25,28)</div>"></a><a href="/npc/view/322304/tealowooka-skala-173lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_green-3b.gif" data-tip="<b>Tealowooka skała</b>173lvl, grp<div>Kryształowa Grota p.4 (44,47)</div>"></a><a href="/npc/view/322345/szafirowy-brodacz-175lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_blue-1a.gif" data-tip="<b>Szafirowy brodacz</b>175lvl, grp<div>Kryształowa Grota p.3 - sala 1 (16,11)</div>"></a><a href="/npc/view/322171/turkusowy-golem-174lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/kryszt_olbrzym_green-2b.gif" data-tip="<b>Turkusowy golem</b>174lvl, grp<div>Kryształowa Grota p.3 - sala 2 (38,30)</div>"></a></td>
-</tr>
-<tr>
-    <td>177</td>
-    <td><a href="/tags/view/exp-177-driady">Expowisko - driady (177lvl)</a></td>
-    <td><a href="/npc/view/242177/lowczyni-insektow-175lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada1a.gif" data-tip="<b>Łowczyni Insektów</b>175lvl, grp<div>Głusza Świstu (32,2)</div>"></a><a href="/npc/view/242180/poranna-rosa-176lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada4b.gif" data-tip="<b>Poranna Rosa</b>176lvl, grp<div>Głusza Świstu (57,7)</div>"></a><a href="/npc/view/242178/lesny-wiatr-177lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada5b.gif" data-tip="<b>Leśny Wiatr</b>177lvl, grp<div>Głusza Świstu (29,3)</div>"></a><a href="/npc/view/242176/strazniczka-darow-lasu-177lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada3b.gif" data-tip="<b>Strażniczka Darów Lasu</b>177lvl<div>Głusza Świstu (1,48)</div>"></a><a href="/npc/view/241427/wladczyni-lak-180lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada_8b.gif" data-tip="<b>Władczyni Łąk</b>180lvl, grp<div>Kwieciste Kresy (62,4)</div>"></a><a href="/npc/view/240643/opiekunka-potokow-179lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada6a.gif" data-tip="<b>Opiekunka Potoków</b>179lvl, grp<div>Grota Arbor s.1 (23,21)</div>"></a><a href="/npc/view/240642/ciernista-strzala-178lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada2b.gif" data-tip="<b>Ciernista Strzała</b>178lvl, grp<div>Grota Arbor s.1 (19,19)</div>"></a><a href="/npc/view/240644/patronka-zywicznej-magii-179lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/driada7a.gif" data-tip="<b>Patronka Żywicznej Magii</b>179lvl, grp<div>Grota Arbor s.1 (20,23)</div>"></a><a href="/npc/view/240645/fantom-kniei-180lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/drzew-2b.gif" data-tip="<b>Fantom Kniei</b>180lvl<div>Grota Arbor s.1 (17,26)</div>"></a><a href="/npc/view/240641/ozywiony-pien-178lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/drzew-1a.gif" data-tip="<b>Ożywiony Pień</b>178lvl<div>Grota Arbor s.1 (18,13)</div>"></a><a href="/npc/view/240640/bijaca-wierzba-179lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/drzew-4a.gif" data-tip="<b>Bijąca Wierzba</b>179lvl, grp<div>Grota Arbor s.1 (13,11)</div>"></a><a href="/npc/view/242153/cora-debu-177lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/driada_e1a.gif" data-tip="<b>Córa Dębu</b><i>elita</i>177lvl, grp<div>Głusza Świstu (26,51)</div>"></a></td>
-</tr>
-<tr>
-    <td>181</td>
-    <td><a href="/tags/view/exp-181-furbole">Expowisko - furbole (181lvl)</a></td>
-    <td><a href="/npc/view/181768/szaman-furboli-180lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/forbol06.gif" data-tip="<b>Szaman Furboli</b>180lvl, grp<div>Rozległa Równina (39,55)</div>"></a><a href="/npc/view/181760/mysliwy-furbol-181lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/forbol04.gif" data-tip="<b>Myśliwy Furbol</b>181lvl, grp<div>Rozległa Równina (37,43)</div>"></a><a href="/npc/view/181761/zwiadowca-furboli-182lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/forbol08.gif" data-tip="<b>Zwiadowca Furboli</b>182lvl, grp<div>Rozległa Równina (49,53)</div>"></a><a href="/npc/view/181766/furbol-tropiciel-181lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/forbol14.gif" data-tip="<b>Furbol Tropiciel</b>181lvl, grp<div>Zapomniany Las (39,8)</div>"></a><a href="/npc/view/181764/czarujacy-furbol-180lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/forbol02.gif" data-tip="<b>Czarujący Furbol</b>180lvl, grp<div>Zapomniany Las (8,32)</div>"></a><a href="/npc/view/181762/wojowniczy-furbol-182lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/forbol12.gif" data-tip="<b>Wojowniczy Furbol</b>182lvl, grp<div>Rozległa Równina (14,57)</div>"></a><a href="/npc/view/243043/potezny-furbol-182lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/forbol15.gif" data-tip="<b>Potężny Furbol</b><i>elita</i>182lvl, grp<div>Terytorium Furii (31,17)</div>"></a></td>
-</tr>
-<tr>
-    <td>183</td>
-    <td><a href="/tags/view/exp-183-patrycjusze">Expowisko - patrycjusze (183lvl)</a></td>
-    <td><a href="/npc/view/242944/osamotniona-patrycjuszka-182lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/thuz-patr2-l.gif" data-tip="<b>Osamotniona patrycjuszka</b>182lvl, grp<div>Krypty Bezsennych p.2 s.1 (33,22)</div>"></a><a href="/npc/view/242945/opuszczony-patrycjusz-184lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/thuz-patr3-l.gif" data-tip="<b>Opuszczony patrycjusz</b>184lvl<div>Krypty Bezsennych p.2 s.1 (45,25)</div>"></a><a href="/npc/view/243201/nieumarly-patrycjusz-183lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/thuz-patr4-p.gif" data-tip="<b>Nieumarły patrycjusz</b>183lvl, grp<div>Krypty Bezsennych p.1 s.2 (12,21)</div>"></a><a href="/npc/view/242946/ozywione-zwloki-185lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/thuz-patr6-b.gif" data-tip="<b>Ożywione zwłoki</b>185lvl, grp<div>Krypty Bezsennych p.2 s.1 (38,26)</div>"></a><a href="/npc/view/241589/bezsenny-patrycjusz-185lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/thuz-patr5-p.gif" data-tip="<b>Bezsenny patrycjusz</b><i>elita</i>185lvl, grp<div>Krypty Bezsennych p.2 s.2 (40,17)</div>"></a><a href="/npc/view/241546/madame-pompadour-185lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/e-thuz-pat1-b.gif" data-tip="<b>Madame Pompadour</b><i>elita</i>185lvl, grp<div>Krypty Bezsennych p.1 s.2 (8,39)</div>"></a></td>
-</tr>
-<tr>
-    <td>188</td>
-    <td><a href="/tags/view/exp-188-draki">Expowisko - draki (188lvl)</a></td>
-    <td><a href="/npc/view/242438/drak-szczypiacego-mrozu-191lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/drak_5b.gif" data-tip="<b>Drak szczypiącego mrozu</b>191lvl, grp<div>Szczerba Samobójców (76,47)</div>"></a><a href="/npc/view/242433/zahartowana-wartowniczka-190lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/drak_3b.gif" data-tip="<b>Zahartowana wartowniczka</b>190lvl, grp<div>Szczerba Samobójców (87,43)</div>"></a><a href="/npc/view/242420/aragoth-wladca-sniezyc-190lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/e-thuz-drak-1a.gif" data-tip="<b>Aragoth Władca Śnieżyc</b><i>elita</i>190lvl, grp<div>Szczerba Samobójców (85,22)</div>"></a><a href="/npc/view/242432/strzala-polnocy-188lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/drak_1a.gif" data-tip="<b>Strzała Północy</b>188lvl, grp<div>Szczerba Samobójców (91,42)</div>"></a><a href="/npc/view/242436/postrach-thuzalczykow-187lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/drak_4a.gif" data-tip="<b>Postrach Thuzalczyków</b>187lvl, grp<div>Szczerba Samobójców (79,46)</div>"></a><a href="/npc/view/242434/sniezna-burza-189lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/drak_2b.gif" data-tip="<b>Śnieżna Burza</b>189lvl, grp<div>Szczerba Samobójców (62,45)</div>"></a><a href="/npc/view/242537/wilcza-zamiec-190lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/e-thuz-drak-2a.gif" data-tip="<b>Wilcza Zamieć</b><i>elita</i>190lvl, grp<div>Śnieżna Granica (53,60)</div>"></a></td>
-</tr>
-<tr>
-    <td>192</td>
-    <td><a href="/tags/view/exp-192-myswiory">Expowisko - myswiory (192lvl)</a></td>
-    <td><a href="/npc/view/237460/myswior-byku-192lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_woj-a.gif" data-tip="<b>Myświór Byku</b><i>elita</i>192lvl, grp<div>Kanały Nithal (78,28)</div>"></a><a href="/npc/view/20765/myswior-baldi-191lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_woj2.gif" data-tip="<b>Myświór Baldi</b>191lvl, grp<div>Kanały Nithal (14,54)</div>"></a><a href="/npc/view/20767/myswior-zezul-191lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_lowca.gif" data-tip="<b>Myświór Zezul</b>191lvl, grp<div>Kanały Nithal (49,58)</div>"></a><a href="/npc/view/20754/myswior-pala-190lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_pal.gif" data-tip="<b>Myświór Pała</b>190lvl, grp<div>Kanały Nithal (22,8)</div>"></a><a href="/npc/view/20758/myswior-piorun-192lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_mag.gif" data-tip="<b>Myświór Piorun</b>192lvl, grp<div>Kanały Nithal (76,25)</div>"></a><a href="/npc/view/20759/myswior-grom-193lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_mag2.gif" data-tip="<b>Myświór Grom</b>193lvl, grp<div>Kanały Nithal (80,25)</div>"></a><a href="/npc/view/20753/myswior-siepacz-193lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_tancerz.gif" data-tip="<b>Myświór Siepacz</b>193lvl<div>Kanały Nithal (34,5)</div>"></a><a href="/npc/view/20762/myswior-dziurka-190lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/szczur_tancerz2.gif" data-tip="<b>Myświór Dziurka</b>190lvl, grp<div>Kanały Nithal (6,40)</div>"></a></td>
-</tr>
-<tr>
-    <td>200</td>
-    <td><a href="/tags/view/exp-200-sekta">Expowisko - sekta (200lvl)</a></td>
-    <td><a href="/npc/view/234500/obronca-sekty-205lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-wyznw01a.gif" data-tip="<b>Obrońca Sekty</b>205lvl<div>Sala Tysiąca Świec (61,16)</div>"></a><a href="/npc/view/234564/demoniczny-straznik-205lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-bractwo1a.gif" data-tip="<b>Demoniczny Strażnik</b><i>elita</i>205lvl, grp<div>Sala Tysiąca Świec (65,28)</div>"></a><a href="/npc/view/234504/heretyk-wirtuoz-tortur-204lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-mistrz1a.gif" data-tip="<b>Heretyk Wirtuoz Tortur</b>204lvl<div>Sala Tysiąca Świec (56,18)</div>"></a><a href="/npc/view/234496/czciciel-demonow-203lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-mistrz2b.gif" data-tip="<b>Czciciel Demonów</b>203lvl, grp<div>Sala Tysiąca Świec (61,59)</div>"></a><a href="/npc/view/234497/heretyk-lowca-niewiast-202lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-wyznh01b.gif" data-tip="<b>Heretyk Łowca Niewiast</b>202lvl, grp<div>Sala Tysiąca Świec (77,59)</div>"></a><a href="/npc/view/234501/mistrz-rytualu-201lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-wzywajacy1a.gif" data-tip="<b>Mistrz Rytuału</b>201lvl<div>Sala Tysiąca Świec (77,16)</div>"></a><a href="/npc/view/236337/podziemny-wartownik-200lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-msciciel1a.gif" data-tip="<b>Podziemny Wartownik</b>200lvl<div>Lochy Kultu (32,28)</div>"></a><a href="/npc/view/234897/czarny-wdowiec-200lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-wdowiec1b.gif" data-tip="<b>Czarny Wdowiec</b><i>elita</i>200lvl, grp<div>Lochy Kultu (22,33)</div>"></a><a href="/npc/view/236333/opetany-heretyk-199lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-wtransie1a.gif" data-tip="<b>Opętany Heretyk</b>199lvl, grp<div>Lochy Kultu (35,19)</div>"></a><a href="/npc/view/236335/pogromca-myswiorow-199lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-heretykh01b.gif" data-tip="<b>Pogromca Myświórów</b>199lvl, grp<div>Lochy Kultu (31,21)</div>"></a><a href="/npc/view/236332/rozpruwacz-dziewic-198lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-heretyk2b.gif" data-tip="<b>Rozpruwacz Dziewic</b>198lvl, grp<div>Lochy Kultu (21,19)</div>"></a><a href="/npc/view/236334/krwawy-wyznawca-198lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-zabojca1a.gif" data-tip="<b>Krwawy Wyznawca</b>198lvl, grp<div>Lochy Kultu (25,20)</div>"></a><a href="/npc/view/234246/hurysa-nikolja-197lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-hurysa4a.gif" data-tip="<b>Hurysa Nikolja</b>197lvl<div>Mroczne Komnaty (25,36)</div>"></a><a href="/npc/view/236331/wtajemniczony-heretyk-197lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-heretyk1b.gif" data-tip="<b>Wtajemniczony Heretyk</b>197lvl<div>Lochy Kultu (16,18)</div>"></a><a href="/npc/view/234176/hurysa-achajeta-197lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-hurysa1a.gif" data-tip="<b>Hurysa Achajeta</b><i>elita</i>197lvl, grp<div>Mroczne Komnaty (59,56)</div>"></a><a href="/npc/view/234243/hurysa-patisja-196lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-hurysa5b.gif" data-tip="<b>Hurysa Patisja</b>196lvl, grp<div>Mroczne Komnaty (9,30)</div>"></a><a href="/npc/view/234240/hurysa-lussien-196lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-hurysa2a.gif" data-tip="<b>Hurysa Lussien</b>196lvl, grp<div>Mroczne Komnaty (13,28)</div>"></a><a href="/npc/view/234241/hurysa-rapsolieta-195lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sekta-hurysa3a.gif" data-tip="<b>Hurysa Rapsolieta</b>195lvl, grp<div>Mroczne Komnaty (27,29)</div>"></a></td>
-</tr>
-<tr>
-    <td>211</td>
-    <td><a href="/tags/view/exp-211-pajaki">Expowisko - pajaki (211lvl)</a></td>
-    <td><a href="/npc/view/132877/nesticus-morisii-210lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak3-b.gif" data-tip="<b>Nesticus morisii</b>210lvl, grp<div>Zapomniane Sztolnie p.1 (12,7)</div>"></a><a href="/npc/view/132876/nesticus-eremita-211lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak5-a.gif" data-tip="<b>Nesticus eremita</b>211lvl, grp<div>Zapomniane Sztolnie p.1 (16,5)</div>"></a><a href="/npc/view/132356/meta-menardi-213lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak6-b.gif" data-tip="<b>Meta menardi</b>213lvl, grp<div>Arachnitopia p.4 (11,24)</div>"></a><a href="/npc/view/132880/porrhomma-convexum-212lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak4-b.gif" data-tip="<b>Porrhomma convexum</b>212lvl, grp<div>Zapomniane Sztolnie p.1 (48,12)</div>"></a><a href="/npc/view/131607/pajecza-straz-208lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak9-b.gif" data-tip="<b>Pajęcza straż</b>208lvl, grp<div>Dolina Pajęczych Korytarzy (23,28)</div>"></a><a href="/npc/view/132353/holostomon-oreophilum-214lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak7-a.gif" data-tip="<b>Holostomon oreophilum</b>214lvl<div>Arachnitopia p.4 (59,14)</div>"></a><a href="/npc/view/132352/ischyropsalis-alpinula-215lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pajak8-b.gif" data-tip="<b>Ischyropsalis alpinula</b>215lvl, grp<div>Arachnitopia p.4 (18,13)</div>"></a></td>
-</tr>
-<tr>
-    <td>219</td>
-    <td><a href="/tags/view/exp-219-maddoki">Expowisko - maddoki (219lvl)</a></td>
-    <td><a href="/npc/view/248330/aligator-rzeczny-215lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/krokodyl-14p.gif" data-tip="<b>Aligator rzeczny</b>215lvl<div>Dolina Potoku Śmierci (9,9)</div>"></a><a href="/npc/view/248326/krokodyl-rozancowy-217lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/krokodyl-15p.gif" data-tip="<b>Krokodyl różańcowy</b>217lvl<div>Dolina Potoku Śmierci (15,1)</div>"></a><a href="/npc/view/248327/kajman-czarny-216lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/krokodyl-16l.gif" data-tip="<b>Kajman czarny</b>216lvl<div>Dolina Potoku Śmierci (48,2)</div>"></a><a href="/npc/view/230912/leniwy-maddok-221lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok1.gif" data-tip="<b>Leniwy Maddok</b>221lvl, grp<div>Złota Dąbrowa (18,31)</div>"></a><a href="/npc/view/101632/szaman-maddokow-224lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok4.gif" data-tip="<b>Szaman Maddoków</b>224lvl, grp<div>Grota Porośniętych Stalagmitów - sala boczna (11,13)</div>"></a><a href="/npc/view/230913/ociezaly-maddok-224lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok6.gif" data-tip="<b>Ociężały Maddok</b>224lvl, grp<div>Złota Dąbrowa (25,19)</div>"></a><a href="/npc/view/101376/opieszaly-maddok-222lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok3.gif" data-tip="<b>Opieszały Maddok</b>222lvl<div>Skryty Azyl (3,26)</div>"></a><a href="/npc/view/101377/senny-maddok-223lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok2.gif" data-tip="<b>Senny Maddok</b>223lvl, grp<div>Skryty Azyl (58,48)</div>"></a><a href="/npc/view/35656/szaman-maddokow-218lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok4.gif" data-tip="<b>Szaman Maddoków</b>218lvl, grp<div>Grota Błotnej Magii (10,13)</div>"></a><a href="/npc/view/36500/straznik-maddokow-218lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/maddok2.gif" data-tip="<b>Strażnik Maddoków</b><i>elita</i>218lvl<div>Głuchy Las (21,90)</div>"></a></td>
-</tr>
-<tr>
-    <td>228</td>
-    <td><a href="/tags/view/exp-228-anuraki">Expowisko - anuraki (228lvl)</a></td>
-    <td><a href="/npc/view/115209/jesiotrzyc-wasaty-230lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/madbagna_4a.gif" data-tip="<b>Jesiotrzyc Wąsaty</b>230lvl<div>Urwisko Vapora (56,8)</div>"></a><a href="/npc/view/110956/pantherania-rzeczna-230lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/madbagna_5a.gif" data-tip="<b>Pantherania Rzeczna</b><i>elita</i>230lvl, grp<div>Bagna Umarłych (33,46)</div>"></a><a href="/npc/view/307379/piaskun-229lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/madbagna_7a.gif" data-tip="<b>Piaskun</b>229lvl, grp<div>Grzęzawisko Rozpaczy (4,58)</div>"></a><a href="/npc/view/228356/boforan-rogaty-228lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/madbagna_3.gif" data-tip="<b>Boforan Rogaty</b>228lvl, grp<div>Dolina Pełznącego Krzyku (40,39)</div>"></a><a href="/npc/view/228399/anurak-rechotliwy-227lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/madbagna_1.gif" data-tip="<b>Anurak Rechotliwy</b><i>elita</i>227lvl, grp<div>Grzęzawisko Rozpaczy (38,48)</div>"></a><a href="/npc/view/307380/kotrakan-pustynny-226lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/madbagna_6a.gif" data-tip="<b>Kotrakan Pustynny</b>226lvl, grp<div>Grzęzawisko Rozpaczy (15,59)</div>"></a><a href="/npc/view/228352/arval-grzebieniasty-226lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/madbagna_2.gif" data-tip="<b>Arval Grzebieniasty</b>226lvl, grp<div>Dolina Pełznącego Krzyku (39,16)</div>"></a></td>
-</tr>
-<tr>
-    <td>237</td>
-    <td><a href="/tags/view/exp-237-drzewce">Expowisko - drzewce (237lvl)</a></td>
-    <td><a href="/npc/view/128000/paszczodendron-238lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/dendro_pasz1.gif" data-tip="<b>Paszczodendron</b>238lvl<div>Piaskowa Gęstwina (23,35)</div>"></a><a href="/npc/view/128002/kosciodrzew-237lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/dendro_szkiel1.gif" data-tip="<b>Kościodrzew</b>237lvl, grp<div>Piaskowa Gęstwina (4,37)</div>"></a><a href="/npc/view/221029/bubalus-236lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/e236_dendro-a.gif" data-tip="<b>Bubalus</b><i>elita</i>236lvl<div>Regiel Zabłąkanych (46,27)</div>"></a><a href="/npc/view/127767/kamienny-starodrzew-235lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/dendro_kam1.gif" data-tip="<b>Kamienny Starodrzew</b>235lvl, grp<div>Regiel Zabłąkanych (69,5)</div>"></a><a href="/npc/view/128257/rycerz-trzech-sekow-239lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/denndro_kos1.gif" data-tip="<b>Rycerz Trzech Sęków</b>239lvl, grp<div>Jaskinia Korzennego Czaru p.1 - sala 3 (14,7)</div>"></a></td>
-</tr>
-<tr>
-    <td>242</td>
-    <td><a href="/tags/view/exp-242-bolity">Expowisko - bolity (242lvl)</a></td>
-    <td><a href="/npc/view/218368/jaskiniowa-bolita-244lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/bolita2-a.gif" data-tip="<b>Jaskiniowa bolita</b>244lvl, grp<div>Złota Góra p.2 s.2 (10,36)</div>"></a><a href="/npc/view/221184/szafirowa-bolita-243lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/pancernike.gif" data-tip="<b>Szafirowa bolita</b>243lvl, grp<div>Złota Góra p.1 s.3 (20,35)</div>"></a><a href="/npc/view/221185/nokturni-242lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/nokturni-b.gif" data-tip="<b>Nokturni</b>242lvl, grp<div>Złota Góra p.1 s.3 (18,36)</div>"></a><a href="/npc/view/221461/pancerna-bolita-241lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/bolita-b.gif" data-tip="<b>Pancerna bolita</b>241lvl, grp<div>Dolina Chmur (54,16)</div>"></a><a href="/npc/view/221459/mutokli-241lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/mutokli-a.gif" data-tip="<b>Mutokli</b>241lvl, grp<div>Dolina Chmur (70,14)</div>"></a><a href="/npc/view/221453/pesterni-240lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/pesterni-b.gif" data-tip="<b>Pesterni</b>240lvl, grp<div>Dolina Chmur (48,7)</div>"></a><a href="/npc/view/221441/bojownik-slonca-246lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek1-b.gif" data-tip="<b>Bojownik Słońca</b>246lvl, grp<div>Dolina Chmur (28,57)</div>"></a><a href="/npc/view/221440/cuetzpalli-245lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek11-a.gif" data-tip="<b>Cuetzpalli</b>245lvl, grp<div>Dolina Chmur (22,57)</div>"></a></td>
-</tr>
-<tr>
-    <td>248</td>
-    <td><a href="/tags/view/exp-248-niecka">Expowisko - niecka (248lvl)</a></td>
-    <td><a href="/npc/view/221355/cuachic-250lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/mahoptek9-b.gif" data-tip="<b>Cuachic</b><i>elita</i>250lvl, grp<div>Niecka Xiuh Atl (11,75)</div>"></a><a href="/npc/view/221696/tlamanih-247lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek2-a.gif" data-tip="<b>Tlamanih</b>247lvl, grp<div>Oztotl Tzacua p.3 s.1 (15,25)</div>"></a><a href="/npc/view/221697/waleczny-jaguar-248lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek6-b.gif" data-tip="<b>Waleczny Jaguar</b>248lvl, grp<div>Oztotl Tzacua p.3 s.1 (51,26)</div>"></a><a href="/npc/view/221699/otomi-249lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek5-a.gif" data-tip="<b>Otomi</b>249lvl, grp<div>Oztotl Tzacua p.3 s.1 (18,29)</div>"></a></td>
-</tr>
-<tr>
-    <td>252</td>
-    <td><a href="/tags/view/exp-252-wiedzmy">Expowisko - wiedzmy (252lvl)</a></td>
-    <td><a href="/npc/view/156425/kaprysnica-gorejaca-255lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_7b.gif" data-tip="<b>Kapryśnica Gorejąca</b>255lvl, grp<div>Potępione Zamczysko - pracownia (14,8)</div>"></a><a href="/npc/view/157736/zlosliwa-sekutnica-255lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_5b.gif" data-tip="<b>Złośliwa Sekutnica</b>255lvl, grp<div>Wieża Szlochów p.3 (11,9)</div>"></a><a href="/npc/view/156212/zadzierzgnieta-haniebnica-255lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_1a.gif" data-tip="<b>Zadzierzgnięta Haniebnica</b>255lvl<div>Zachodnie Zbocze (56,28)</div>"></a><a href="/npc/view/157696/odchodnica-cesarska-254lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/odchodnica_a.gif" data-tip="<b>Odchodnica Cesarska</b>254lvl, grp<div>Jęczywąwóz (4,25)</div>"></a><a href="/npc/view/157440/dokuczliwa-bzdziagwa-254lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_8b.gif" data-tip="<b>Dokuczliwa Bździągwa</b>254lvl, grp<div>Potępione Zamczysko - lochy zachodnie (21,14)</div>"></a><a href="/npc/view/157697/scierwica-miesowka-253lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/pot/scierwica_b.gif" data-tip="<b>Ścierwica Mięsówka</b>253lvl<div>Jęczywąwóz (21,25)</div>"></a><a href="/npc/view/156168/kasajaca-grymasnica-253lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_4b.gif" data-tip="<b>Kąsająca Grymaśnica</b>253lvl<div>Potępione Zamczysko (22,53)</div>"></a><a href="/npc/view/156160/rogata-rozkosznica-253lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_2b.gif" data-tip="<b>Rogata Rozkosznica</b>253lvl, grp<div>Potępione Zamczysko (32,21)</div>"></a><a href="/npc/view/156431/raszpla-ragana-252lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_3b.gif" data-tip="<b>Raszpla Ragana</b>252lvl, grp<div>Potępione Zamczysko - pracownia (9,15)</div>"></a><a href="/npc/view/157441/obwisla-prukwa-251lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/kob/tri2_witch_6a.gif" data-tip="<b>Obwisła Prukwa</b>251lvl, grp<div>Potępione Zamczysko - lochy zachodnie (3,6)</div>"></a></td>
-</tr>
-<tr>
-    <td>255</td>
-    <td><a href="/tags/view/exp-255-maho">Expowisko - maho (255lvl)</a></td>
-    <td><a href="/npc/view/220487/czciciel-quetzalcoatla-260lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/mahoptek8-a.gif" data-tip="<b>Czciciel Quetzalcoatla</b><i>elita</i>260lvl, grp<div>Wschodni Mictlan p.8 (28,16)</div>"></a><a href="/npc/view/220160/teopixqui-259lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek13-a.gif" data-tip="<b>Teopixqui</b>259lvl, grp<div>Zachodni Mictlan p.7 (27,24)</div>"></a><a href="/npc/view/220161/kaplan-krwawej-ofiary-258lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek7-a.gif" data-tip="<b>Kapłan Krwawej Ofiary</b>258lvl, grp<div>Zachodni Mictlan p.7 (25,28)</div>"></a><a href="/npc/view/220416/papalotl-257lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek12-b.gif" data-tip="<b>Papalotl</b>257lvl, grp<div>Wschodni Mictlan p.6 (24,28)</div>"></a><a href="/npc/view/219906/yaotlakatl-257lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek3-b.gif" data-tip="<b>Yaotlakatl</b>257lvl, grp<div>Topan p.10 (25,18)</div>"></a><a href="/npc/view/220417/cuextacatl-256lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/mahoptek4-b.gif" data-tip="<b>Cuextacatl</b>256lvl, grp<div>Wschodni Mictlan p.6 (26,25)</div>"></a></td>
-</tr>
-<tr>
-    <td>268</td>
-    <td><a href="/tags/view/exp-268-katakumby">Expowisko - katakumby (268lvl)</a></td>
-    <td><a href="/npc/view/107527/imperialny-gwardzista-270lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/katakumby06.gif" data-tip="<b>Imperialny gwardzista</b>270lvl, grp<div>Grobowiec Seta (63,67)</div>"></a><a href="/npc/view/107521/nekrolord-wernoradu-269lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/katakumby02.gif" data-tip="<b>Nekrolord Wernoradu</b>269lvl, grp<div>Grobowiec Seta (48,76)</div>"></a><a href="/npc/view/107520/imperialny-oszczepnik-268lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/katakumby10.gif" data-tip="<b>Imperialny oszczepnik</b>268lvl, grp<div>Grobowiec Seta (48,70)</div>"></a><a href="/npc/view/106496/starozytny-legionista-267lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/katakumby03.gif" data-tip="<b>Starożytny legionista</b>267lvl, grp<div>Wschodni Tunel Jaźni (22,35)</div>"></a><a href="/npc/view/106241/antyczny-skrytobojca-266lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/katakumby07.gif" data-tip="<b>Antyczny skrytobójca</b>266lvl, grp<div>Komnaty Bezdusznych - sala 2 (62,46)</div>"></a><a href="/npc/view/106240/duch-arystokraty-265lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/katakumby11.gif" data-tip="<b>Duch arystokraty</b>265lvl, grp<div>Komnaty Bezdusznych - sala 2 (58,40)</div>"></a></td>
-</tr>
-<tr>
-    <td>275</td>
-    <td><a href="/tags/view/exp-275-pustynia">Expowisko - pustynia (275lvl)</a></td>
-    <td><a href="/npc/view/265472/smokoszczeki-277lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/barb4a.gif" data-tip="<b>Smokoszczęki</b>277lvl<div>Pustynia Shaiharrud - wschód (1,15)</div>"></a><a href="/npc/view/265011/wyznawca-hebrehotha-279lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/barb7.gif" data-tip="<b>Wyznawca Hebrehotha</b><i>elita</i>279lvl, grp<div>Namiot Pustynnych Smoków (10,5)</div>"></a><a href="/npc/view/265223/zaklinacz-sepow-272lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/sepi_zaklinacz1b.gif" data-tip="<b>Zaklinacz sępów</b>272lvl, grp<div>Urwisko Vapora (65,49)</div>"></a><a href="/npc/view/265728/sluga-piaskow-278lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/barb6a.gif" data-tip="<b>Sługa piasków</b>278lvl, grp<div>Świątynia Hebrehotha - sala czciciela (42,22)</div>"></a><a href="/npc/view/265729/czciciel-charkhaam-278lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/barb3a.gif" data-tip="<b>Czciciel Charkhaam</b>278lvl<div>Świątynia Hebrehotha - sala czciciela (7,27)</div>"></a><a href="/npc/view/265479/pilowiec-276lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/barb1a.gif" data-tip="<b>Piłowiec</b>276lvl, grp<div>Pustynia Shaiharrud - wschód (14,42)</div>"></a><a href="/npc/view/265216/sep-271lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/zwi/sep1.gif" data-tip="<b>Sęp</b>271lvl<div>Jaskinia Sępa s.2 (22,37)</div>"></a><a href="/npc/view/115200/shaiharrudzki-mutant-274lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/barb5.gif" data-tip="<b>Shaiharrudzki mutant</b>274lvl, grp<div>Jaskinia Sępa s.1 (36,36)</div>"></a><a href="/npc/view/207942/drakosep-275lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e2/drakosep_pus.gif" data-tip="<b>Drakosęp</b><i>elita</i>275lvl<div>Skały Umarłych (30,20)</div>"></a></td>
-</tr>
-<tr>
-    <td>280</td>
-    <td><a href="/tags/view/exp-280-driady">Expowisko - driady (280lvl)</a></td>
-    <td><a href="/npc/view/240404/sansevieria-strazniczka-kniei-286lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-7b.gif" data-tip="<b>Sansevieria Strażniczka Kniei</b>286lvl, grp<div>Gvar Hamryd (17,51)</div>"></a><a href="/npc/view/240380/calathea-ornata-286lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/hamadriada_e1-a.gif" data-tip="<b>Calathea Ornata</b><i>elita</i>286lvl, grp<div>Gvar Hamryd (18,61)</div>"></a><a href="/npc/view/240249/strelitzia-reginae-286lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/hamadriada_e2-b.gif" data-tip="<b>Strelitzia Reginae</b><i>elita</i>286lvl, grp<div>Matecznik Szelestu (37,65)</div>"></a><a href="/npc/view/240388/driada-haworsja-285lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-6a.gif" data-tip="<b>Driada Haworsja</b>285lvl<div>Gvar Hamryd (55,28)</div>"></a><a href="/npc/view/240384/chamedora-pani-drzew-284lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-5b.gif" data-tip="<b>Chamedora Pani Drzew</b>284lvl, grp<div>Gvar Hamryd (43,18)</div>"></a><a href="/npc/view/240391/bluszczowa-wojowniczka-283lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-4b.gif" data-tip="<b>Bluszczowa Wojowniczka</b>283lvl, grp<div>Gvar Hamryd (41,40)</div>"></a><a href="/npc/view/240649/hoya-carnosa-282lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-3b.gif" data-tip="<b>Hoya Carnosa</b>282lvl, grp<div>Jaskinia Suchych Pędów s.1 (15,13)</div>"></a><a href="/npc/view/240385/bezwzgledna-echeveria-281lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-2a.gif" data-tip="<b>Bezwzględna Echeveria</b>281lvl, grp<div>Gvar Hamryd (46,19)</div>"></a><a href="/npc/view/240648/mroczna-difenbachia-280lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/m_hamadriada-1a.gif" data-tip="<b>Mroczna Difenbachia</b>280lvl, grp<div>Jaskinia Suchych Pędów s.1 (29,12)</div>"></a></td>
-</tr></tbody>
-    For example:
-    <tr>
-        <td>18</td>
-        <td><a href="/tags/view/exp-18-grobowce">Expowisko - grobowce (18lvl)</a></td>
-        <td><a href="/npc/view/98640/adept-19lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/hum/adept.gif" data-tip="<b>Adept</b>19lvl, grp<div>Krypta Rodu Heregata p.2 - prawe skrzydło (18,12)</div>"></a></td>
-    </tr>
-    <tr>
-        <td>20</td>
-        <td><a href="/tags/view/exp-20-mrowki">Expowisko - mrówki (20lvl)</a></td>
-        <td><a href="/npc/view/83567/mrowcza-krolowa-22lvl"><img class="npc" src="https://micc.garmory-cdn.cloud/obrazki/npc/e1/mrowka-kro01a.gif" data-tip="<b>Mrówcza Królowa</b><i>elita</i>22lvl<div>Mrowisko p.2 (18,12)</div>"></a></td>
-    </tr>'''
-    
-    # Check if the placeholder is still there
-    if "PASTE YOUR HTML SNIPPET HERE" in user_html_snippet:
-        print("Please paste the HTML snippet into the 'user_html_snippet' variable in the script.")
-        print("The script will not run correctly with the placeholder content.")
-    else:
-        # Run the scraping function
-        asyncio.run(scrape_enemy_sprites_from_html(user_html_snippet, output_base_dir="templates"))
+async def capture_canvas_screenshot(url: str, output_filename: str = "canvas.png"):
+    """
+    Launches a browser, navigates to the Margonem URL, and takes a screenshot of the canvas element.
+    """
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        page = await browser.new_page()
+        print(f"Navigating to {url}...")
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=60000)
+            print("Page loaded successfully.")
+            # Wait for the canvas to appear
+            await page.wait_for_selector('canvas', timeout=30000)
+            canvas = await page.query_selector('canvas')
+            if canvas:
+                print("Canvas found. Taking screenshot...")
+                await canvas.screenshot(path=output_filename)
+                print(f"Canvas screenshot saved to {output_filename}")
+            else:
+                print("Canvas element not found!")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            await browser.close()
+            print("Browser closed.")
 
-    # To run the old functionality:
-    # margonem_url = "https://gordion.margonem.pl/"
-    # asyncio.run(capture_margonem_page(margonem_url)) 
+async def find_enemies_on_canvas(canvas_screenshot_path, template_dir, threshold=0.7):
+    """
+    Find enemy sprites on the canvas screenshot using template matching.
+    Returns a list of tuples (enemy_name, match_position, match_confidence).
+    """
+    print(f"Looking for enemies in {canvas_screenshot_path}...")
+    
+    # Read the canvas screenshot
+    canvas_img = cv2.imread(canvas_screenshot_path)
+    if canvas_img is None:
+        print(f"Error: Could not read canvas screenshot at {canvas_screenshot_path}")
+        return []
+    
+    # Convert to grayscale for better matching
+    canvas_gray = cv2.cvtColor(canvas_img, cv2.COLOR_BGR2GRAY)
+    
+    results = []
+    
+    # Loop through all enemy templates
+    for filename in os.listdir(template_dir):
+        if not (filename.endswith('.png') or filename.endswith('.gif') or filename.endswith('.jpg')):
+            continue
+            
+        template_path = os.path.join(template_dir, filename)
+        
+        # For GIF files, we need to extract the first frame
+        if filename.endswith('.gif'):
+            try:
+                with Image.open(template_path) as img:
+                    # Convert PIL Image to cv2 format
+                    img_array = np.array(img.convert('RGB'))
+                    template_img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+            except Exception as e:
+                print(f"Error processing GIF {filename}: {e}")
+                continue
+        else:
+            # For PNG/JPG, read directly
+            template_img = cv2.imread(template_path)
+            
+        if template_img is None:
+            print(f"Could not read template {filename}")
+            continue
+            
+        # Convert template to grayscale
+        template_gray = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
+        
+        # Apply template matching
+        res = cv2.matchTemplate(canvas_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+        
+        # Get positions where match exceeds threshold
+        loc = np.where(res >= threshold)
+        
+        for pt in zip(*loc[::-1]):  # Switch columns and rows
+            # Get the match confidence at this point
+            confidence = res[pt[1], pt[0]]
+            
+            # Get enemy name from filename (remove level and extension)
+            enemy_name = os.path.splitext(filename)[0]
+            enemy_name = enemy_name.split('_lvl')[0]
+            
+            results.append({
+                'name': enemy_name,
+                'position': pt,  # (x, y) coordinates
+                'confidence': float(confidence),
+                'width': template_gray.shape[1],
+                'height': template_gray.shape[0]
+            })
+    
+    # Sort by confidence (highest first)
+    results.sort(key=lambda x: x['confidence'], reverse=True)
+    print(f"Found {len(results)} potential enemy matches")
+    
+    return results
+
+async def find_and_fight_enemies(url: str):
+    """
+    Main bot function that captures the canvas, finds enemies, and clicks on them.
+    """
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        page = await browser.new_page()
+        
+        print(f"Navigating to {url}...")
+        await page.goto(url, wait_until="networkidle", timeout=60000)
+        print("Page loaded. Waiting for login...")
+        
+        # Wait for user to manually log in (we can automate this later)
+        input("Please log in manually and press Enter when ready...")
+        
+        while True:
+            try:
+                # Ensure we have the canvas
+                canvas = await page.query_selector('canvas')
+                if not canvas:
+                    print("Canvas not found! Waiting...")
+                    await asyncio.sleep(2)
+                    continue
+                
+                # Take a screenshot of the canvas
+                await canvas.screenshot(path="current_canvas.png")
+                
+                # Find enemies on the canvas
+                enemies_dir = os.path.join("templates", "enemies")
+                enemies = await find_enemies_on_canvas("current_canvas.png", enemies_dir)
+                
+                if not enemies:
+                    print("No enemies found. Waiting...")
+                    await asyncio.sleep(2)
+                    continue
+                
+                # Get canvas dimensions for center calculation
+                canvas_size = await page.evaluate("""() => {
+                    const canvas = document.querySelector('canvas');
+                    return { width: canvas.width, height: canvas.height };
+                }""")
+                
+                center_x = canvas_size['width'] / 2
+                center_y = canvas_size['height'] / 2
+                
+                # Find the closest enemy to the center of the screen
+                closest_enemy = None
+                closest_distance = float('inf')
+                
+                for enemy in enemies:
+                    # Calculate center point of the enemy
+                    enemy_center_x = enemy['position'][0] + enemy['width'] / 2
+                    enemy_center_y = enemy['position'][1] + enemy['height'] / 2
+                    
+                    # Calculate distance from center
+                    distance = ((enemy_center_x - center_x) ** 2 + (enemy_center_y - center_y) ** 2) ** 0.5
+                    
+                    if distance < closest_distance:
+                        closest_distance = distance
+                        closest_enemy = enemy
+                
+                if closest_enemy:
+                    print(f"Found closest enemy: {closest_enemy['name']} at position {closest_enemy['position']}")
+                    
+                    # Calculate click position (center of the enemy)
+                    click_x = closest_enemy['position'][0] + closest_enemy['width'] / 2
+                    click_y = closest_enemy['position'][1] + closest_enemy['height'] / 2
+                    
+                    # Click on the enemy
+                    await page.mouse.click(click_x, click_y)
+                    print(f"Clicked at position ({click_x}, {click_y})")
+                    
+                    # Look for and click the "Fight" button
+                    # This part depends on the game's UI, we may need to adjust selectors
+                    try:
+                        fight_button = await page.wait_for_selector('button:has-text("Fight")', timeout=3000)
+                        if fight_button:
+                            await fight_button.click()
+                            print("Clicked Fight button")
+                            
+                            # Wait for fight to complete
+                            await asyncio.sleep(5)  # Adjust based on typical fight duration
+                    except Exception as e:
+                        print(f"Could not find or click Fight button: {e}")
+                
+                # Wait a bit before next iteration
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                await asyncio.sleep(5)
+            
+            # Optional: Add a way to exit the loop
+            if input("Press Enter to continue, 'q' to quit: ").lower() == 'q':
+                break
+                
+        await browser.close()
+        print("Browser closed.")
+
+if __name__ == "__main__":
+    margonem_url = "https://gordion.margonem.pl/"
+    # Choose which function to run
+    print("Choose an operation:")
+    print("1. Capture canvas screenshot")
+    print("2. Run bot (detect and fight enemies)")
+    
+    choice = input("Enter choice (1 or 2): ")
+    
+    if choice == "1":
+        asyncio.run(capture_canvas_screenshot(margonem_url, output_filename="canvas.png"))
+    elif choice == "2":
+        asyncio.run(find_and_fight_enemies(margonem_url))
+    else:
+        print("Invalid choice!")
